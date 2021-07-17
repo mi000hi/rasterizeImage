@@ -406,6 +406,9 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 					}
 				}
 			}
+			
+			// mark the end of the rasterization for the user
+			System.out.println("Subimages have been saved. Check the log above!");
 			break;
 
 		}
