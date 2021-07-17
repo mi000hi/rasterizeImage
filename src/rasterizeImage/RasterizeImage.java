@@ -36,9 +36,7 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 	private final Point IMAGE_LOCATION = new Point(50, 220);
 	private JFileChooser fileChooser = new JFileChooser();
 
-	private final double IMAGE_ASPECT_RATIO = 16.0 / 9.0;
 	private double IMAGE_SCALE_RATIO = 1.0;
-	private Point rasterPosition_d1 = new Point(0, 0);
 	private boolean movableRaster = true;
 	private Point rasterPosition = new Point(0, 0);
 
@@ -47,6 +45,7 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 	private JTextField tf_rasterRowOffset, tf_rasterColumnOffset;
 	private JTextField tf_rasterColumns, tf_rasterRows;
 	private JTextField tf_rasterPadding;
+	private JTextField tf_rasterAspectRatio;
 
 	/**
 	 * creates a panel containing a canvas and some GUI elements to manipulate an
@@ -65,7 +64,7 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 		this.setLayout(panelLayout);
 		this.setOpaque(true);
 		this.addMouseListener(this);
-		this.setMinimumSize(new Dimension(1920+100, 500));
+		this.setMinimumSize(new Dimension(1920 + 100, 500));
 		Main.getFrame().setMinimumSize(this.getMinimumSize());
 
 		// add GUI components
@@ -122,6 +121,11 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 		tf_rasterPadding = new JTextField("0");
 		tf_rasterPadding.setFont(FONT_BUTTON);
 		addComponentWithLabel(this, "raster padding", tf_rasterPadding, 1300, 120, 200, 50);
+
+		// add a textfield to define the aspect ratio of rasterfields
+		tf_rasterAspectRatio = new JTextField("148:105");
+		tf_rasterAspectRatio.setFont(FONT_BUTTON);
+		addComponentWithLabel(this, "raster aspect ratio", tf_rasterAspectRatio, 1550, 120, 200, 50);
 	}
 
 	/**
@@ -153,13 +157,13 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 	}
 
 	/**
-	 * adds a component to the specified panel using the provided SpringLayout
-	 * and also adds a label on the top of the component. the label is not included
-	 * in the specified dimensions (position and size)
+	 * adds a component to the specified panel using the provided SpringLayout and
+	 * also adds a label on the top of the component. the label is not included in
+	 * the specified dimensions (position and size)
 	 * 
 	 * @param parent    the parent jpanel of the component, needed to receive the
 	 *                  SpringLayout
-	 * @param label		the label of the component
+	 * @param label     the label of the component
 	 * @param component the component to add to the parent jpanel
 	 * @param x         the x-position for the component
 	 * @param y         the y-position for the component
@@ -172,10 +176,10 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 		// create the label
 		JLabel l = new JLabel(label);
 		l.setFont(FONT_LABEL);
-		
+
 		// add the label
-		addComponent(parent, l, x, y-17, width, 20);
-		
+		addComponent(parent, l, x, y - 17, width, 20);
+
 		// add the component
 		addComponent(parent, component, x, y, width, height);
 	}
@@ -232,7 +236,7 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 		int x1, x2, y1, y2;
 		Point p;
 		int rasterfieldWidth = (int) (rasterWidth / numColumns);
-		int rasterfieldHeight = (int) (rasterfieldWidth / IMAGE_ASPECT_RATIO);
+		int rasterfieldHeight = (int) (rasterfieldWidth / readAspectRatioFromTextField(tf_rasterAspectRatio));
 
 		// horizontal lines
 		BasicStroke stroke = new BasicStroke(5);
@@ -272,6 +276,32 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 			return 0;
 		}
 	}
+	
+	/**
+	 * reads the aspect ratio from the specified JTextField. Value is always >=0.0001
+	 * 
+	 * @param textField the textfield to read the aspect ratio from
+	 * @return the aspect ratio inside the textfield, 0.0001 if its not a number
+	 */
+	private double readAspectRatioFromTextField(JTextField textField) {
+
+		// read from the textfield
+		String text = textField.getText();
+		String[] numbers = text.split(":");
+
+		try {
+			double numerator = Integer.parseInt(numbers[0]);
+			double denominator = Integer.parseInt(numbers[1]);
+			
+			if(denominator == 0) return 0.0001;
+			
+			return (double) (numerator / denominator);
+		} catch (NumberFormatException e) {
+			return 0.0001;
+		} catch (ArrayIndexOutOfBoundsException a) {
+			return 0.0001;
+		}
+	}
 
 	/**
 	 * returns the top left corner position of a rasterfield located at (x,y) in the
@@ -289,7 +319,7 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 				+ x * readIntFromTextField(tf_rasterPadding));
 		int yPos = (int) (position.y
 				+ x * readIntFromTextField(tf_rasterColumnOffset) + y * readIntFromTextField(tf_rasterWidth)
-						/ Math.max(1, readIntFromTextField(tf_rasterColumns)) / IMAGE_ASPECT_RATIO
+						/ Math.max(1, readIntFromTextField(tf_rasterColumns)) / readAspectRatioFromTextField(tf_rasterAspectRatio)
 				+ y * readIntFromTextField(tf_rasterPadding));
 
 		return new Point(xPos, yPos);
@@ -329,8 +359,8 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 				System.err.println("No image selected!");
 				return;
 			}
-			
-			// ask the user where to save the files  
+
+			// ask the user where to save the files
 			int userSelection = fileChooser.showSaveDialog(this);
 			if (userSelection != JFileChooser.APPROVE_OPTION) {
 				System.err.println("User did not select a save destination. Subimages were not saved!");
@@ -344,7 +374,7 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 			BufferedImage subimage;
 			Point subimageLocation;
 			int subimageWidth = (int) (readIntFromTextField(tf_rasterWidth) * IMAGE_SCALE_RATIO / numColumns);
-			int subimageHeight = (int) (subimageWidth / IMAGE_ASPECT_RATIO);
+			int subimageHeight = (int) (subimageWidth / readAspectRatioFromTextField(tf_rasterAspectRatio));
 			File subimageFile;
 
 			for (int i = 0; i < numRows; i++) {
@@ -363,7 +393,8 @@ public class RasterizeImage extends JPanel implements ActionListener, MouseListe
 								subimageHeight);
 
 						// save the subimage in a new file
-						subimageFile = new File(destinationFile.getParent() + "/" + destinationFile.getName().split("\\.")[0] + "_(" + j + i + ").png");
+						subimageFile = new File(destinationFile.getParent() + "/"
+								+ destinationFile.getName().split("\\.")[0] + "_(" + j + i + ").png");
 
 						ImageIO.write(subimage, "png", subimageFile);
 						System.out.println("Subimage saved under [" + subimageFile.getAbsolutePath() + "]");
